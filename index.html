@@ -523,6 +523,9 @@
   .field textarea,
   .field select {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: block;
     font-family: 'Inter', sans-serif;
     font-size: 14.5px;
     padding: 10px 11px;
@@ -530,6 +533,11 @@
     border: 1px solid #ddd3b8;
     background: #fffdf8;
     color: var(--ink-text);
+  }
+  .field input[type=date] {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
   }
   .field textarea { resize: vertical; min-height: 60px; }
 
@@ -666,7 +674,7 @@ const AVATAR_SEBAS_HEAD = "data:image/webp;base64,UklGRhJAAABXRUJQVlA4WAoAAAAQAA
    CONFIGURACIÓN — pega aquí la URL de tu Apps Script desplegado
    ============================================================ */
 const CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycbyvyQh5qjIIvgIYdvkkqSe3OyRo6nTZdJbhl9ibhzD0Wn6mt6w2jkhHHIgdcV-pdydbRQ/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbwTin00mQmLB8LjDbbzcvI_N5ze9ql30HTq42xe_HyBFYVeVIeqc8GuNjEd16KzNTiWfQ/exec",
   NOMBRES: ["Lau", "Sebas"]
 };
 
@@ -996,6 +1004,17 @@ function closeModal() {
   render();
 }
 
+function syncFormFields() {
+  const t = document.getElementById("f-titulo");
+  const d = document.getElementById("f-descripcion");
+  const f = document.getElementById("f-fecha");
+  const c = document.getElementById("f-costo");
+  if (t) state.draft.titulo = t.value;
+  if (d) state.draft.descripcion = d.value;
+  if (f) state.draft.fechaTentativa = f.value;
+  if (c) state.draft.costoEstimado = c.value;
+}
+
 function openSurprise() {
   const candidatos = state.planes.filter(p => p.estado === "idea" || p.estado === "programado");
   if (!candidatos.length) {
@@ -1154,14 +1173,26 @@ function wireModal() {
 
   if (state.modal.mode === "new" || state.modal.mode === "edit") {
     document.getElementById("btn-cancel").onclick = closeModal;
+
+    // Guarda cada campo de texto en el estado apenas se escribe, para que
+    // nunca se pierda nada sin importar qué botón se toque después.
+    const tEl = document.getElementById("f-titulo");
+    const dEl = document.getElementById("f-descripcion");
+    const fEl = document.getElementById("f-fecha");
+    const cEl = document.getElementById("f-costo");
+    if (tEl) tEl.oninput = () => { state.draft.titulo = tEl.value; };
+    if (dEl) dEl.oninput = () => { state.draft.descripcion = dEl.value; };
+    if (fEl) fEl.oninput = () => { state.draft.fechaTentativa = fEl.value; };
+    if (cEl) cEl.oninput = () => { state.draft.costoEstimado = cEl.value; };
+
     document.querySelectorAll("[data-cat]").forEach(el => {
-      el.onclick = () => { state.draft.categoria = el.dataset.cat; render(); };
+      el.onclick = () => { syncFormFields(); state.draft.categoria = el.dataset.cat; render(); };
     });
     document.querySelectorAll("[data-heart]").forEach(el => {
-      el.onclick = () => { state.draft.prioridad = Number(el.dataset.heart); render(); };
+      el.onclick = () => { syncFormFields(); state.draft.prioridad = Number(el.dataset.heart); render(); };
     });
     document.querySelectorAll("[data-who]").forEach(el => {
-      el.onclick = () => { state.draft.propuestoPor = el.dataset.who; render(); };
+      el.onclick = () => { syncFormFields(); state.draft.propuestoPor = el.dataset.who; render(); };
     });
     document.getElementById("btn-save").onclick = saveDraft;
     return;
