@@ -123,6 +123,131 @@
     margin-top: 4px;
   }
 
+  /* ---------- MARCADOR (tarjeta fija) ---------- */
+  .score-pill {
+    width: 100%;
+    margin-top: 10px;
+    background: var(--ink);
+    border: none;
+    border-radius: 14px;
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    -webkit-touch-callout: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .score-pill .sp-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #F8B4B2;
+  }
+  .score-pill .sp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .score-pill .sp-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #FFFFFF;
+  }
+  .score-pill .sp-num {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: #FFFFFF;
+  }
+  .score-pill .sp-vs {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--gold-soft);
+    padding: 0 2px;
+  }
+
+  /* ---------- MARCADOR (modal) ---------- */
+  .score-board {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 10px 0 18px;
+  }
+  .score-side { text-align: center; flex: 1; }
+  .score-side .sb-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 0 auto 8px;
+    background: #F8B4B2;
+  }
+  .score-side .sb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .score-side .sb-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-soft);
+    margin-bottom: 2px;
+  }
+  .score-side .sb-num {
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 34px;
+    color: var(--coral);
+  }
+  .score-vs {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-soft);
+  }
+
+  .score-add-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .juego-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+
+  .score-history {
+    margin-top: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    border-top: 1px solid #F3D9D6;
+  }
+  .score-history-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 2px;
+    border-bottom: 1px solid #F3D9D6;
+    font-size: 12.5px;
+  }
+  .score-history-row .sh-winner {
+    font-weight: 700;
+    color: var(--coral);
+    min-width: 44px;
+  }
+  .score-history-row .sh-game {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    background: var(--paper-dim);
+    padding: 2px 7px;
+    border-radius: 5px;
+  }
+  .score-history-row .sh-place { flex: 1; color: #6b6250; }
+  .score-history-row .sh-del {
+    background: none; border: none; color: var(--text-soft);
+    font-size: 16px; cursor: pointer; padding: 4px 6px;
+  }
+  .score-empty { text-align: center; color: var(--text-soft); font-size: 13px; padding: 16px 0; }
+
   /* ---------- HEADER ILLUSTRATION ---------- */
   .header-illustration {
     position: relative;
@@ -780,6 +905,7 @@
     <h1 class="title">Planes de Lau &amp; Sebas</h1>
     <p class="subtitle">Ideas, fechas y recuerdos de lo que hacemos juntos.</p>
     <div class="stat-row" id="stat-row"></div>
+    <button class="score-pill" id="btn-marcador"></button>
   </header>
 
   <button class="surprise-btn" id="btn-surprise">✦ Sorpréndeme con un plan</button>
@@ -843,16 +969,21 @@ function avatarBadge(name) {
    ============================================================ */
 const state = {
   planes: [],
+  marcador: [],
   loading: true,
   error: null,
   view: "planes",       // planes | calendario | realizados | ranking
   filter: "todos",       // todos | idea | programado
-  modal: null,           // { mode: 'new'|'edit'|'detail'|'day'|'surprise', plan }
+  modal: null,           // { mode: 'new'|'edit'|'detail'|'day'|'surprise'|'marcador', plan }
   draft: null,
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
-  dayDate: null
+  dayDate: null,
+  marcadorAdding: null,      // null | "Lau" | "Sebas" (a quién se le está registrando el punto)
+  marcadorLast: { juego: "Uno", lugar: "" }
 };
+
+const JUEGOS_COMUNES = ["Uno", "Jenga", "Cartas", "Parqués", "Otro"];
 
 /* ============================================================
    API
@@ -862,7 +993,7 @@ async function apiGet() {
   if (!res.ok) throw new Error("No se pudo conectar con la hoja de cálculo.");
   const data = await res.json();
   if (data.error) throw new Error(data.error);
-  return data.planes || [];
+  return { planes: data.planes || [], marcador: data.marcador || [] };
 }
 
 async function apiSend(action, payload) {
@@ -880,7 +1011,9 @@ async function apiSend(action, payload) {
 async function loadPlanes() {
   state.loading = true; state.error = null; render();
   try {
-    state.planes = await apiGet();
+    const data = await apiGet();
+    state.planes = data.planes;
+    state.marcador = data.marcador;
   } catch (err) {
     state.error = err.message || String(err);
   }
@@ -967,11 +1100,37 @@ function daysCount() {
    ============================================================ */
 function render() {
   renderStats();
+  renderScorePill();
   renderTabs();
   renderFilterChips();
   renderContent();
   renderBottomNav();
   renderModal();
+}
+
+function scoreTally() {
+  const tally = {};
+  CONFIG.NOMBRES.forEach(n => { tally[n] = 0; });
+  state.marcador.forEach(m => {
+    if (tally[m.ganador] !== undefined) tally[m.ganador]++;
+  });
+  return tally;
+}
+
+function renderScorePill() {
+  const btn = document.getElementById("btn-marcador");
+  const tally = scoreTally();
+  const [n1, n2] = CONFIG.NOMBRES;
+  btn.innerHTML = `
+    <span class="sp-avatar"><img src="${avatarSrcFor(n1)}" alt="${n1}"></span>
+    <span class="sp-name">${n1}</span>
+    <span class="sp-num">${tally[n1] || 0}</span>
+    <span class="sp-vs">VS</span>
+    <span class="sp-num">${tally[n2] || 0}</span>
+    <span class="sp-name">${n2}</span>
+    <span class="sp-avatar"><img src="${avatarSrcFor(n2)}" alt="${n2}"></span>
+  `;
+  btn.onclick = openMarcador;
 }
 
 function renderStats() {
@@ -1282,6 +1441,12 @@ function runSurpriseSpin(candidatos, elegido) {
   }, tickMs);
 }
 
+function openMarcador() {
+  state.marcadorAdding = null;
+  state.modal = { mode: "marcador" };
+  render();
+}
+
 function openDay(dateObj) {
   state.dayDate = dateObj;
   state.modal = { mode: "day" };
@@ -1308,6 +1473,7 @@ function renderModal() {
   else if (state.modal.mode === "edit") body.innerHTML = formTemplate("Editar plan");
   else if (state.modal.mode === "surprise") body.innerHTML = surpriseTemplate();
   else if (state.modal.mode === "day") body.innerHTML = dayTemplate();
+  else if (state.modal.mode === "marcador") body.innerHTML = marcadorTemplate();
   else body.innerHTML = detailTemplate();
 
   wireModal();
@@ -1355,6 +1521,67 @@ function formTemplate(title) {
       <button class="btn secondary" id="btn-cancel">Cancelar</button>
       <button class="btn primary" id="btn-save">Guardar</button>
     </div>
+  `;
+}
+
+function marcadorTemplate() {
+  const tally = scoreTally();
+  const [n1, n2] = CONFIG.NOMBRES;
+  const history = state.marcador.slice().sort((a, b) => new Date(b.fechaCreacion || 0) - new Date(a.fechaCreacion || 0));
+
+  const addingFor = state.marcadorAdding;
+  const addForm = addingFor ? `
+    <div class="field" style="margin-top:6px;">
+      <label>¿Qué jugaron?</label>
+      <div class="juego-picker" id="sh-juego-picker">
+        ${JUEGOS_COMUNES.map(j => `<div class="cat-opt ${state.marcadorLast.juego === j ? "selected" : ""}" data-juego="${j}">${j}</div>`).join("")}
+      </div>
+    </div>
+    <div class="field">
+      <label>Lugar (opcional)</label>
+      <input type="text" id="sh-lugar" value="${escapeHtml(state.marcadorLast.lugar || "")}" placeholder="Ej: Picnic, casa...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="btn-score-cancel">Cancelar</button>
+      <button class="btn primary" id="btn-score-save">Guardar punto de ${addingFor}</button>
+    </div>
+  ` : `
+    <div class="score-add-row">
+      <button class="btn primary" id="btn-add-n1">+1 ${n1}</button>
+      <button class="btn primary" id="btn-add-n2">+1 ${n2}</button>
+    </div>
+  `;
+
+  return `
+    <h2>Marcador ${n1} vs ${n2}</h2>
+    <div class="score-board">
+      <div class="score-side">
+        <span class="sb-avatar"><img src="${avatarSrcFor(n1)}" alt="${n1}"></span>
+        <div class="sb-name">${n1}</div>
+        <div class="sb-num">${tally[n1] || 0}</div>
+      </div>
+      <div class="score-vs">VS</div>
+      <div class="score-side">
+        <span class="sb-avatar"><img src="${avatarSrcFor(n2)}" alt="${n2}"></span>
+        <div class="sb-name">${n2}</div>
+        <div class="sb-num">${tally[n2] || 0}</div>
+      </div>
+    </div>
+
+    ${addForm}
+
+    <div class="score-history">
+      ${history.length ? history.map(h => `
+        <div class="score-history-row" data-id="${h.id}">
+          <span class="sh-winner">${escapeHtml(h.ganador)}</span>
+          <span class="sh-game">${escapeHtml(h.juego || "—")}</span>
+          <span class="sh-place">${escapeHtml(h.lugar || "")}</span>
+          <button class="sh-del" data-del="${h.id}" title="Eliminar">×</button>
+        </div>
+      `).join("") : `<div class="score-empty">Todavía no han registrado ninguna partida.</div>`}
+    </div>
+
+    ${!addingFor ? `<button class="btn secondary" id="btn-score-close" style="margin-top:14px;width:100%;">Cerrar</button>` : ""}
   `;
 }
 
@@ -1479,6 +1706,37 @@ function wireModal() {
     return;
   }
 
+  if (state.modal.mode === "marcador") {
+    const closeBtn = document.getElementById("btn-score-close");
+    if (closeBtn) closeBtn.onclick = closeModal;
+
+    const [n1, n2] = CONFIG.NOMBRES;
+    const addN1 = document.getElementById("btn-add-n1");
+    const addN2 = document.getElementById("btn-add-n2");
+    if (addN1) addN1.onclick = () => { state.marcadorAdding = n1; render(); };
+    if (addN2) addN2.onclick = () => { state.marcadorAdding = n2; render(); };
+
+    document.querySelectorAll("[data-juego]").forEach(el => {
+      el.onclick = () => {
+        const lugarEl = document.getElementById("sh-lugar");
+        if (lugarEl) state.marcadorLast.lugar = lugarEl.value;
+        state.marcadorLast.juego = el.dataset.juego;
+        render();
+      };
+    });
+
+    const cancelBtn = document.getElementById("btn-score-cancel");
+    if (cancelBtn) cancelBtn.onclick = () => { state.marcadorAdding = null; render(); };
+
+    const saveBtn = document.getElementById("btn-score-save");
+    if (saveBtn) saveBtn.onclick = saveMarcadorEntry;
+
+    document.querySelectorAll("[data-del]").forEach(btn => {
+      btn.onclick = (e) => { e.stopPropagation(); removeMarcadorEntry(btn.dataset.del); };
+    });
+    return;
+  }
+
   if (state.modal.mode === "surprise") {
     if (state.modal.loading) return; // nada que conectar mientras gira la ruleta
     document.getElementById("btn-surprise-close").onclick = closeModal;
@@ -1548,6 +1806,41 @@ function wireModal() {
       };
       reader.readAsDataURL(file);
     };
+  }
+}
+
+async function saveMarcadorEntry() {
+  const ganador = state.marcadorAdding;
+  if (!ganador) return;
+  const lugarEl = document.getElementById("sh-lugar");
+  const lugar = lugarEl ? lugarEl.value.trim() : "";
+  const juego = state.marcadorLast.juego || "Otro";
+  state.marcadorLast = { juego, lugar };
+
+  const btn = document.getElementById("btn-score-save");
+  if (btn) { btn.textContent = "Guardando…"; btn.disabled = true; }
+
+  try {
+    await apiSend("addMarcador", { entry: { juego, ganador, fecha: toISODateLocal(new Date()), lugar, nota: "" } });
+    state.marcadorAdding = null;
+    await loadPlanes();
+    state.modal = { mode: "marcador" };
+    render();
+  } catch (err) {
+    alert("No se pudo guardar el punto: " + err.message);
+    if (btn) { btn.textContent = "Guardar punto de " + ganador; btn.disabled = false; }
+  }
+}
+
+async function removeMarcadorEntry(id) {
+  if (!confirm("¿Eliminar este punto del historial?")) return;
+  try {
+    await apiSend("deleteMarcador", { id });
+    await loadPlanes();
+    state.modal = { mode: "marcador" };
+    render();
+  } catch (err) {
+    alert("No se pudo eliminar: " + err.message);
   }
 }
 
