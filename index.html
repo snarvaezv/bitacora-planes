@@ -833,6 +833,26 @@
   .modal-actions {
     display: flex; gap: 10px; margin-top: 18px;
   }
+
+  /* ---------- WELCOME (ventana emergente al abrir) ---------- */
+  .welcome-photo {
+    width: 100%;
+    max-height: 60vh;
+    object-fit: cover;
+    border-radius: 14px;
+    display: block;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .welcome-msg {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--coral);
+    text-align: center;
+    margin: 0 0 20px;
+  }
   .btn {
     flex: 1;
     padding: 12px;
@@ -1406,6 +1426,12 @@ function syncFormFields() {
   if (c) state.draft.costoEstimado = c.value;
 }
 
+function openWelcome() {
+  state.draft = null;
+  state.modal = { mode: "welcome" };
+  render();
+}
+
 function openSurprise() {
   const candidatos = state.planes.filter(p => p.estado === "idea" || p.estado === "programado");
   if (!candidatos.length) {
@@ -1473,6 +1499,7 @@ function renderModal() {
 
   if (state.modal.mode === "new") body.innerHTML = formTemplate("Nuevo plan");
   else if (state.modal.mode === "edit") body.innerHTML = formTemplate("Editar plan");
+  else if (state.modal.mode === "welcome") body.innerHTML = welcomeTemplate();
   else if (state.modal.mode === "surprise") body.innerHTML = surpriseTemplate();
   else if (state.modal.mode === "day") body.innerHTML = dayTemplate();
   else if (state.modal.mode === "marcador") body.innerHTML = marcadorTemplate();
@@ -1613,6 +1640,14 @@ function dayTemplate() {
   `;
 }
 
+function welcomeTemplate() {
+  return `
+    <img class="welcome-photo" src="foto-bienvenida.jpg" alt="Lau y Sebas">
+    <p class="welcome-msg">No importas cuando leas esto Lau: Te quiero, te elijo y te respeto.</p>
+    <button class="btn done" id="btn-welcome-close" style="width:100%;">Cerrar</button>
+  `;
+}
+
 function surpriseTemplate() {
   if (state.modal.loading) {
     return `
@@ -1698,6 +1733,11 @@ function detailTemplate() {
 function wireModal() {
   const overlay = document.getElementById("modal-overlay");
   overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+
+  if (state.modal.mode === "welcome") {
+    document.getElementById("btn-welcome-close").onclick = closeModal;
+    return;
+  }
 
   if (state.modal.mode === "day") {
     document.getElementById("btn-day-close").onclick = closeModal;
@@ -1925,10 +1965,8 @@ async function removeDraft() {
 document.getElementById("fab-new").onclick = openNew;
 document.getElementById("btn-surprise").onclick = openSurprise;
 loadPlanes().then(() => {
-  // Al entrar a la app, lanza automáticamente la sorpresa (si hay ideas guardadas)
-  if (state.planes.some(p => p.estado === "idea" || p.estado === "programado")) {
-    openSurprise();
-  }
+  // Al entrar a la app, despliega la ventana de bienvenida con la foto y el mensaje
+  openWelcome();
 });
 </script>
 </body>
