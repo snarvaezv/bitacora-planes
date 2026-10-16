@@ -1924,7 +1924,12 @@ async function removeDraft() {
    ============================================================ */
 document.getElementById("fab-new").onclick = openNew;
 document.getElementById("btn-surprise").onclick = openSurprise;
-loadPlanes();
+loadPlanes().then(() => {
+  // Al entrar a la app, lanza automáticamente la sorpresa (si hay ideas guardadas)
+  if (state.planes.some(p => p.estado === "idea" || p.estado === "programado")) {
+    openSurprise();
+  }
+});
 </script>
 </body>
 </html>
